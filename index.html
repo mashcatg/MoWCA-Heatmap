@@ -1182,7 +1182,7 @@ function initMap() {
   
   // Rest of your initMap code...
   map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 10,
+    zoom: 7,
     center: { lat: 23.8103, lng: 90.4125 },
     mapTypeId: "roadmap"
   });
@@ -1503,7 +1503,7 @@ function initModalMap(crime) {
   
   modalMap = new google.maps.Map(mapContainer, {
     center: { lat: crime.location.latitude, lng: crime.location.longitude },
-    zoom: 10,
+    zoom: 7,
     disableDefaultUI: true,
     zoomControl: true
   });
