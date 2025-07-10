@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Crime Heatmap Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+      :root {
+        --primary: #6c5ce7;
+        --primary-dark: #5649c0;
+        --danger: #ff7675;
+        --warning: #fdcb6e;
+        --success: #00b894;
+        --info: #0984e3;
+        --dark: #2d3436;
+        --light: #f5f6fa;
+        --shadow: 0 10px 20px rgba(0,0,0,0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body, html {
+        margin: 0;
+        padding: 0;
+        font-family: 'Poppins', sans-serif;
+        background-color: #f8f9fa;
+        color: #333;
+        height: 100%;
+      }
+
+      #map {
+        height: 100vh;
+        width: 100%;
+        transition: all 0.3s ease;
+      }
+
+      .filter-panel {
+        transition: all 0.3s ease;
+      }
+
+      .custom-marker {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-origin: center bottom;
+      }
+
+      .custom-marker:hover {
+        transform: scale(1.1);
+        z-index: 2;
+      }
+
+      .marker-container {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+      }
+
+      .marker-background {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+      }
+
+      .marker-container img {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(255, 255, 255, 0.9);
+      }
+
+      .filter-button {
+        transition: all 0.2s ease;
+      }
+
+      .filter-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .crime-tooltip {
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .crime-modal {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+
+      .dashboard {
+        position: relative;
+        height: 100vh;
+        width: 100%;
+      }
+
+      .filter-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        padding: 20px;
+        width: 320px;
+        backdrop-filter: blur(10px);
+      }
+
+      .filter-panel h3 {
+        margin: 0 0 15px 0;
+        color: var(--dark);
+        font-size: 1.2em;
+        font-weight: 600;
+      }
+
+      .filter-section {
+        margin-bottom: 20px;
+      }
+
+      .filter-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .filter-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--dark);
+      }
+
+      .filter-reset {
+        background: none;
+        border: none;
+        color: var(--primary);
+        font-weight: 500;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .filter-group {
+        margin-bottom: 15px;
+      }
+
+      .filter-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--dark);
+      }
+
+      .filter-select {
+        width: 100%;
+        padding: 12px 15px;
+        border-radius: 10px;
+        border: 2px solid #eee;
+        font-family: 'Poppins', sans-serif;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+        color: var(--dark);
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        padding-right: 40px;
+      }
+
+      .filter-select:hover {
+        border-color: var(--primary);
+      }
+
+      .filter-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+      }
+
+      .filter-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .filter-btn {
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        background: var(--light);
+        color: var(--dark);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 13px;
+        text-align: center;
+      }
+
+      .filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      }
+
+      .filter-btn.active {
+        background: var(--primary);
+        color: white;
+      }
+
+      .crime-marker {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        position: relative;
+        cursor: pointer;
+      }
+
+      .crime-marker::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background-color: currentColor;
+        opacity: 0.2;
+        transform: scale(1.5);
+      }
+
+      .crime-marker i {
+        color: white;
+        font-size: 16px;
+        z-index: 1;
+      }
+
+      .crime-tooltip {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        width: 300px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transform-origin: top center;
+        animation: tooltip-appear 0.2s ease-out;
+      }
+
+      @keyframes tooltip-appear {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .crime-tooltip {
+        z-index: 1000;
+        transform: translate(-50%, -100%);
+        padding: 15px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
+      }
+
+      .crime-tooltip.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .tooltip-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .victim-image {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 12px;
+        border: 3px solid white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      }
+
+      .crime-info {
+        flex: 1;
+      }
+
+      .crime-id {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 2px;
+      }
+
+      .crime-title {
+        font-weight: 600;
+        font-size: 16px;
+        color: var(--dark);
+        margin-bottom: 4px;
+        line-height: 1.3;
+      }
+
+      .crime-type {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 500;
+        background: #eee;
+        color: var(--dark);
+      }
+
+      .tooltip-footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 12px;
+      }
+      .gm-fullscreen-control{
+        display: none !important;
+      }
+      .view-details-btn {
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .view-details-btn:hover {
+        background: var(--primary-dark);
+      }
+
+      .crime-severity {
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+      }
+
+      .severity-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 5px;
+      }
+
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 2000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+
+      .modal-overlay.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .crime-modal {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow);
+        transform: translateY(20px);
+        transition: transform 0.3s;
+      }
+
+      .modal-overlay.visible .crime-modal {
+        transform: translateY(0);
+      }
+
+      .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--dark);
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+      }
+
+      .modal-body {
+        padding: 20px;
+      }
+
+      .modal-section {
+        margin-bottom: 20px;
+      }
+
+      .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: var(--dark);
+        display: flex;
+        align-items: center;
+      }
+
+      .section-title i {
+        margin-right: 8px;
+        color: var(--primary);
+      }
+
+      .victim-details, .suspect-details {
+        display: flex;
+        margin-bottom: 15px;
+      }
+
+      .modal-image {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        object-fit: cover;
+        margin-right: 15px;
+      }
+
+      .detail-list {
+        flex: 1;
+      }
+
+      .detail-item {
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+
+      .detail-label {
+        font-weight: 500;
+        color: #666;
+        display: inline-block;
+        width: 100px;
+      }
+
+      .case-files {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .case-file {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .case-file:hover {
+        border-color: var(--primary);
+        background: #f8f9ff;
+      }
+
+      .file-icon {
+        font-size: 24px;
+        color: var(--primary);
+        margin-bottom: 5px;
+      }
+
+      .file-name {
+        font-size: 12px;
+        word-break: break-all;
+      }
+
+      .location-map {
+        height: 200px;
+        width: 100%;
+        border-radius: 8px;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+
+      .loading {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.9);
+        padding: 20px 40px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        backdrop-filter: blur(5px);
+      }
+
+      .loading-spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--light);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      .loading-text {
+        color: var(--dark);
+        font-weight: 500;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .fade-enter {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      .fade-enter-active {
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+
+      @media (max-width: 768px) {
+        .filter-panel {
+          width: calc(100% - 40px);
+          margin: 20px;
+          right: 0;
+          left: 0;
+          bottom: 20px;
+          top: auto;
+          padding: 15px;
+        }
+        
+        .filter-group:has(.filter-buttons) {
+          display: none;
+        }
+        
+        .crime-tooltip {
+          width: calc(100% - 40px);
+          max-width: 320px;
+        }
+
+        .crime-modal {
+          width: 95%;
+          margin: 10px;
+          max-height: 95vh;
+        }
+
+        .modal-body {
+          padding: 15px;
+        }
+
+        .victim-details, .suspect-details {
+          flex-direction: column;
+        }
+
+        .modal-image {
+          margin-bottom: 15px;
+          margin-right: 0;
+          width: 100%;
+          height: 200px;
+          object-fit: cover;
+        }
+
+        .case-files {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (max-width: 480px) {
+        .filter-panel {
+          margin: 10px;
+          width: calc(100% - 20px);
+          bottom: 10px;
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(10px);
+          box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .filter-buttons {
+          grid-template-columns: 1fr;
+        }
+
+        .crime-tooltip {
+          width: calc(100% - 20px);
+        }
+
+        .case-files {
+          grid-template-columns: 1fr;
+        }
+
+        .tooltip-header {
+          flex-direction: column;
+          text-align: center;
+        }
+
+        .victim-image {
+          margin-right: 0;
+          margin-bottom: 10px;
+        }
+      }
+      .gm-style-mtc button {
+        border-radius: 20px !important;
+      }
+      .gm-style-mtc-bbw .gm-style-mtc:last-of-type>button {
+        margin-left: 10px !important;
+        color: #5649c0 !important;
+      } 
+      
+      .gm-style-mtc-bbw .gm-style-mtc:first-of-type>button {
+        color: #5649c0 !important;
+      }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+</head>
+  <body>
+    <div class="loading" id="loadingIndicator" style="display: none;">
+      <div class="loading-spinner"></div>
+      <span class="loading-text">Loading...</span>
+    </div>
+    <div class="dashboard">
+      <div class="filter-panel">
+        <div class="filter-header">
+          <div class="filter-title">Crime Filter</div>
+          <button class="filter-reset" id="resetFilters">Reset</button>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Crime Type</label>
+          <select class="filter-select" id="crimeTypeFilter">
+            <option value="all">All Types</option>
+            <option value="Child Missing">Child Missing</option>
+            <option value="Gender based violence">Gender Based Violence</option>
+            <option value="Sexual harassment">Sexual Harassment</option>
+            <option value="Mental Health">Mental Health</option>
+            <option value="Rape">Rape</option>
+            <option value="Legal help">Legal Help</option>
+            <option value="Health Emergency">Health Emergency</option>
+            <option value="Suicide Attempt">Suicide Attempt</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Severity</label>
+          <div class="filter-buttons">
+            <button class="filter-btn" data-severity="Red">High</button>
+            <button class="filter-btn" data-severity="Yellow">Medium</button>
+            <button class="filter-btn" data-severity="Green">Low</button>
+            <button class="filter-btn" data-severity="Blue">Resolved</button>
+          </div>
+        </div>
+        <div class="filter-group">
+  <label><input type="checkbox" id="toggleHeatmap" checked> Show Heatmap</label>
+</div>
+
+      </div>
+
+      <div id="map"></div>
+
+      <div class="crime-tooltip" id="crimeTooltip">
+        <div class="tooltip-header">
+          <img class="victim-image" id="tooltipVictimImage" src="https://via.placeholder.com/60" alt="Victim">
+          <div class="crime-info">
+            <div class="crime-id" id="tooltipCrimeId">MWCA-2024-001</div>
+            <div class="crime-title" id="tooltipCrimeTitle">Crime Title</div>
+            <div class="crime-type" id="tooltipCrimeType">Type</div>
+          </div>
+        </div>
+        <div class="tooltip-footer">
+          <span class="crime-severity">
+            <span class="severity-dot" id="tooltipSeverityDot"></span>
+            <span id="tooltipSeverityText">High Severity</span>
+          </span>
+          <button class="view-details-btn" id="viewDetailsBtn">View Details</button>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="crimeModalOverlay">
+        <div class="crime-modal">
+          <div class="modal-header">
+            <div class="modal-title" id="modalCrimeTitle">Crime Details</div>
+            <button class="modal-close" id="modalCloseBtn">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-section">
+              <div class="section-title">
+                <i class="fas fa-info-circle"></i> Case Information
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Case ID:</span>
+                <span id="modalCaseId">MWCA-2024-001</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Type:</span>
+                <span id="modalCaseType">Child Missing</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Severity:</span>
+                <span id="modalCaseSeverity">High</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Description:</span>
+                <span id="modalCaseDescription">Description text goes here...</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Location:</span>
+                <span id="modalCaseLocation">Dhanmondi Road 27, Dhaka</span>
+              </div>
+              <div class="location-map" id="modalLocationMap"></div>
+            </div>
+
+            <div class="modal-section">
+              <div class="section-title">
+                <i class="fas fa-user-injured"></i> Victim Information
+              </div>
+              <div class="victim-details">
+                <img class="modal-image" id="modalVictimImage" src="https://via.placeholder.com/80" alt="Victim">
+                <div class="detail-list">
+                  <div class="detail-item">
+                    <span class="detail-label">Name:</span>
+                    <span id="modalVictimName">Fatima Khatun</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Age:</span>
+                    <span id="modalVictimAge">7</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Address:</span>
+                    <span id="modalVictimAddress">House 12, Road 5, Dhanmondi, Dhaka</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Phone:</span>
+                    <span id="modalVictimPhone">+8801712345678</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-section">
+              <div class="section-title">
+                <i class="fas fa-user-secret"></i> Suspect(s)
+              </div>
+              <div id="suspectsContainer">
+                <!-- Suspects will be added here dynamically -->
+              </div>
+            </div>
+
+            <div class="modal-section">
+              <div class="section-title">
+                <i class="fas fa-folder-open"></i> Case Files
+              </div>
+              <div class="case-files" id="caseFilesContainer">
+                <!-- Case files will be added here dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+<script async defer 
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDCkK2X5KDITf_YbKoE0GhlOOHgyZDp3f8&libraries=visualization&callback=initMap">
+</script>
+    <script>
+      // Crime data from your JSON
+      const crimeData = {
+        "crimes": [
+          {
+            "id": "MWCA-2024-001",
+            "name": "Child Missing in Dhanmondi",
+            "description": "7-year-old girl reported missing from school premises, last seen with unknown individual",
+            "type": "Child Missing",
+            "color": "Red",
+            "location": {
+              "latitude": 23.7465,
+              "longitude": 90.3742,
+              "address": "Dhanmondi Road 27, Dhaka"
+            },
+            "suspects": [
+              {
+                "name": "Rashid Ahmed",
+                "photo": "https://randomuser.me/api/portraits/men/1.jpg",
+                "crime_category": "Child Abduction"
+              },
+              {
+                "name": "Karim Hassan",
+                "photo": "https://randomuser.me/api/portraits/men/2.jpg",
+                "crime_category": "Child Abduction"
+              }
+            ],
+            "victim": {
+              "name": "Fatima Khatun",
+              "image": "https://randomuser.me/api/portraits/women/1.jpg",
+              "age": 7,
+              "address": "House 12, Road 5, Dhanmondi, Dhaka",
+              "phone": "+8801712345678"
+            },
+            "case_files": [
+              "missing_child_poster_001.jpg",
+              "school_cctv_footage_001.mp4",
+              "witness_statement_001.mp3",
+              "amber_alert_001.pdf",
+              "search_operation_001.mp4"
+            ]
+          },
+          {
+            "id": "MWCA-2024-002",
+            "name": "Gender Based Violence in Chittagong",
+            "description": "Domestic violence case involving repeated physical and emotional abuse",
+            "type": "Gender based violence",
+            "color": "Yellow",
+            "location": {
+              "latitude": 22.3569,
+              "longitude": 91.7832,
+              "address": "Agrabad Residential Area, Chittagong"
+            },
+            "suspects": [
+              {
+                "name": "Nasir Uddin",
+                "photo": "https://randomuser.me/api/portraits/men/3.jpg",
+                "crime_category": "Domestic Violence"
+              }
+            ],
+            "victim": {
+              "name": "Rashida Begum",
+              "image": "https://randomuser.me/api/portraits/women/2.jpg",
+              "age": 32,
+              "address": "Panchlaish, Chittagong",
+              "phone": "+8801823456789"
+            },
+            "case_files": [
+              "medical_report_002.pdf",
+              "incident_photos_002.jpg",
+              "counseling_session_002.mp3",
+              "court_order_002.pdf",
+              "safe_house_referral_002.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-003",
+            "name": "Sexual Harassment at Workplace",
+            "description": "Workplace sexual harassment case involving female employee",
+            "type": "Sexual harassment",
+            "color": "Yellow",
+            "location": {
+              "latitude": 23.7925,
+              "longitude": 90.4146,
+              "address": "Gulshan Commercial Area, Dhaka"
+            },
+            "suspects": [
+              {
+                "name": "Shakil Hossain",
+                "photo": "https://randomuser.me/api/portraits/men/4.jpg",
+                "crime_category": "Sexual Harassment"
+              }
+            ],
+            "victim": {
+              "name": "Ruma Akter",
+              "image": "https://randomuser.me/api/portraits/women/3.jpg",
+              "age": 28,
+              "address": "Gulshan-2, Dhaka",
+              "phone": "+8801934567890"
+            },
+            "case_files": [
+              "complaint_letter_003.pdf",
+              "witness_statements_003.pdf",
+              "email_evidence_003.pdf",
+              "hr_investigation_003.mp4",
+              "legal_notice_003.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-004",
+            "name": "Mental Health Crisis in Sylhet",
+            "description": "Severe depression and anxiety case requiring immediate psychiatric intervention",
+            "type": "Mental Health",
+            "color": "Red",
+            "location": {
+              "latitude": 24.8949,
+              "longitude": 91.8687,
+              "address": "Zindabazar, Sylhet"
+            },
+            "suspects": [
+              {
+                "name": "N/A",
+                "photo": "",
+                "crime_category": "N/A"
+              }
+            ],
+            "victim": {
+              "name": "Salma Khatun",
+              "image": "https://randomuser.me/api/portraits/women/4.jpg",
+              "age": 24,
+              "address": "Sylhet Sadar",
+              "phone": "+8801645678901"
+            },
+            "case_files": [
+              "psychiatric_evaluation_004.pdf",
+              "family_consultation_004.mp3",
+              "medication_prescription_004.pdf",
+              "therapy_sessions_004.mp4",
+              "crisis_intervention_004.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-005",
+            "name": "Rape Case in Uttara",
+            "description": "Sexual assault case involving minor victim, immediate medical and legal intervention required",
+            "type": "Rape",
+            "color": "Red",
+            "location": {
+              "latitude": 23.8759,
+              "longitude": 90.3795,
+              "address": "Sector 7, Uttara, Dhaka"
+            },
+            "suspects": [
+              {
+                "name": "Milon Das",
+                "photo": "https://randomuser.me/api/portraits/men/5.jpg",
+                "crime_category": "Sexual Assault"
+              }
+            ],
+            "victim": {
+              "name": "Confidential Minor",
+              "image": "https://randomuser.me/api/portraits/women/5.jpg",
+              "age": 16,
+              "address": "Protected Address, Uttara, Dhaka",
+              "phone": "+8801545678901"
+            },
+            "case_files": [
+              "medical_examination_005.pdf",
+              "victim_statement_005.mp3",
+              "forensic_evidence_005.pdf",
+              "counseling_plan_005.pdf",
+              "legal_proceedings_005.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-006",
+            "name": "Legal Help Request in Rajshahi",
+            "description": "Woman seeking legal assistance for property rights and custody issues",
+            "type": "Legal help",
+            "color": "Green",
+            "location": {
+              "latitude": 24.3745,
+              "longitude": 88.6042,
+              "address": "Court Area, Rajshahi"
+            },
+            "suspects": [
+              {
+                "name": "Hafizur Rahman",
+                "photo": "https://randomuser.me/api/portraits/men/6.jpg",
+                "crime_category": "Property Dispute"
+              }
+            ],
+            "victim": {
+              "name": "Nasreen Akter",
+              "image": "https://randomuser.me/api/portraits/women/6.jpg",
+              "age": 35,
+              "address": "Rajshahi Sadar",
+              "phone": "+8801756789012"
+            },
+            "case_files": [
+              "property_documents_006.pdf",
+              "legal_consultation_006.mp3",
+              "court_application_006.pdf",
+              "mediation_session_006.mp4",
+              "custody_agreement_006.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-007",
+            "name": "Child Missing in Barisal",
+            "description": "10-year-old boy missing for 48 hours, family trafficking suspected",
+            "type": "Child Missing",
+            "color": "Red",
+            "location": {
+              "latitude": 22.7010,
+              "longitude": 90.3535,
+              "address": "Sadar Road, Barisal"
+            },
+            "suspects": [
+              {
+                "name": "Selim Reza",
+                "photo": "https://randomuser.me/api/portraits/men/7.jpg",
+                "crime_category": "Child Trafficking"
+              },
+              {
+                "name": "Hanif Molla",
+                "photo": "https://randomuser.me/api/portraits/men/8.jpg",
+                "crime_category": "Child Trafficking"
+              }
+            ],
+            "victim": {
+              "name": "Arif Hasan",
+              "image": "https://randomuser.me/api/portraits/men/9.jpg",
+              "age": 10,
+              "address": "Kotwali, Barisal",
+              "phone": "+8801656789012"
+            },
+            "case_files": [
+              "missing_report_007.pdf",
+              "search_operation_007.mp4",
+              "family_interview_007.mp3",
+              "trafficking_investigation_007.pdf",
+              "recovery_plan_007.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-008",
+            "name": "Health Emergency in Khulna",
+            "description": "Pregnant woman in domestic violence situation requiring immediate medical care",
+            "type": "Health Emergency",
+            "color": "Red",
+            "location": {
+              "latitude": 22.8456,
+              "longitude": 89.5403,
+              "address": "Khulna Medical College Area, Khulna"
+            },
+            "suspects": [
+              {
+                "name": "Ripon Ahmed",
+                "photo": "https://randomuser.me/api/portraits/men/10.jpg",
+                "crime_category": "Domestic Violence"
+              }
+            ],
+            "victim": {
+              "name": "Nazma Khatun",
+              "image": "https://randomuser.me/api/portraits/women/7.jpg",
+              "age": 25,
+              "address": "Sonadanga, Khulna",
+              "phone": "+8801767890123"
+            },
+            "case_files": [
+              "medical_emergency_008.pdf",
+              "ambulance_call_008.mp3",
+              "hospital_admission_008.pdf",
+              "prenatal_care_008.pdf",
+              "safe_delivery_plan_008.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-009",
+            "name": "Suicide Attempt in Comilla",
+            "description": "Young woman attempted suicide due to family pressure and mental health issues",
+            "type": "Suicide Attempt",
+            "color": "Yellow",
+            "location": {
+              "latitude": 23.4607,
+              "longitude": 91.1809,
+              "address": "Comilla Medical College, Comilla"
+            },
+            "suspects": [
+              {
+                "name": "N/A",
+                "photo": "",
+                "crime_category": "N/A"
+              }
+            ],
+            "victim": {
+              "name": "Shiuli Akter",
+              "image": "https://randomuser.me/api/portraits/women/8.jpg",
+              "age": 22,
+              "address": "Comilla Sadar",
+              "phone": "+8801878901234"
+            },
+            "case_files": [
+              "medical_intervention_009.pdf",
+              "psychiatric_assessment_009.pdf",
+              "family_counseling_009.mp3",
+              "crisis_hotline_009.mp3",
+              "recovery_plan_009.pdf"
+            ]
+          },
+          {
+            "id": "MWCA-2024-010",
+            "name": "Gender Based Violence in Rangpur",
+            "description": "Resolved case of domestic violence with successful rehabilitation and legal action",
+            "type": "Gender based violence",
+            "color": "Blue",
+            "location": {
+              "latitude": 25.7439,
+              "longitude": 89.2752,
+              "address": "Mahiganj, Rangpur"
+            },
+            "suspects": [
+              {
+                "name": "Altaf Hossain",
+                "photo": "https://randomuser.me/api/portraits/men/11.jpg",
+                "crime_category": "Domestic Violence"
+              }
+            ],
+            "victim": {
+              "name": "Marium Begum",
+              "image": "https://randomuser.me/api/portraits/women/9.jpg",
+              "age": 29,
+              "address": "Mahiganj, Rangpur",
+              "phone": "+8801989012345"
+            },
+            "case_files": [
+              "case_closure_010.pdf",
+              "rehabilitation_success_010.jpg",
+              "legal_victory_010.pdf",
+              "victim_testimony_010.mp3",
+              "support_network_010.pdf"
+            ]
+          }
+        ]
+      };
+
+      // Crime data (keep your existing crimeData object)
+
+// Global variables
+// Crime data (keep your existing crimeData object)
+
+// Global variables
+let map;
+let markers = [];
+let heatmap;
+let infoWindow;
+let modalMap;
+let currentCrime = null;
+
+// Initialize the map
+function initMap() {
+  // Wait for visualization library to load
+  google.maps.visualization = google.maps.visualization || {};
+  
+  // Set up a retry mechanism if visualization library isn't loaded yet
+  if (!google.maps.visualization.HeatmapLayer) {
+    setTimeout(initMap, 100);
+    return;
+  }
+  
+  // Rest of your initMap code...
+  map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 10,
+    center: { lat: 23.8103, lng: 90.4125 },
+    mapTypeId: "roadmap"
+  });
+
+
+  google.maps.visualization = google.maps.visualization || {};
+
+  infoWindow = new google.maps.InfoWindow({
+    content: '',
+    maxWidth: 320
+  });
+
+
+  updateMapWithFilters();
+  
+    setupFilterListeners();
+}
+function setupFilterListeners() {
+  document.getElementById('crimeTypeFilter').addEventListener('change', updateMapWithFilters);
+  
+  document.querySelectorAll('.filter-btn[data-severity]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      this.classList.toggle('active');
+      updateMapWithFilters();
+    });
+  });
+  
+  document.getElementById('resetFilters').addEventListener('click', function() {
+    document.getElementById('crimeTypeFilter').value = 'all';
+    document.querySelectorAll('.filter-btn[data-severity]').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.getElementById('toggleHeatmap').checked = true;
+    updateMapWithFilters();
+  });
+  
+  document.getElementById('toggleHeatmap').addEventListener('change', updateMapWithFilters);
+}
+function updateMapWithFilters() {
+  const crimeType = document.getElementById('crimeTypeFilter').value;
+  const activeSeverities = Array.from(document.querySelectorAll('.filter-btn[data-severity].active'))
+    .map(btn => btn.getAttribute('data-severity'));
+  const showHeatmap = document.getElementById('toggleHeatmap').checked;
+  
+  const filteredCrimes = crimeData.crimes.filter(crime => {
+    if (crimeType !== 'all' && crime.type !== crimeType) {
+      return false;
+    }
+    
+    if (activeSeverities.length > 0 && !activeSeverities.includes(crime.color)) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  clearMarkers();
+  
+  filteredCrimes.forEach(crime => {
+    const marker = createMarker(crime);
+    markers.push(marker);
+  });
+  
+  if (heatmap) {
+    heatmap.setMap(null);
+  }
+  
+  if (showHeatmap && filteredCrimes.length > 0) {
+    const heatmapData = filteredCrimes.map(crime => ({
+      location: new google.maps.LatLng(crime.location.latitude, crime.location.longitude),
+      weight: getWeightForSeverity(crime.color)
+    }));
+
+    heatmap = new google.maps.visualization.HeatmapLayer({
+      data: heatmapData,
+      map: map,
+      radius: 40,
+      gradient: [
+        'rgba(0, 255, 0, 0)',
+        'rgba(0, 255, 0, 0.5)',
+        'rgba(255, 255, 0, 0.7)',
+        'rgba(255, 165, 0, 0.8)',
+        'rgba(255, 0, 0, 1)'
+      ],
+      opacity: 0.8,
+      dissipating: true
+    });
+  }
+}
+function getWeightForSeverity(severity) {
+  switch(severity) {
+    case 'high': return 3;
+    case 'medium': return 2;
+    case 'low': return 1;
+    default: return 1;
+  }
+}
+
+function updateMapMarkers(crimes) {
+  clearMarkers();
+  
+  crimes.forEach(crime => {
+    const marker = createMarker(crime);
+    markers.push(marker);
+  });
+}
+
+function createMarker(crime) {
+  const marker = new google.maps.Marker({
+    position: { lat: crime.location.latitude, lng: crime.location.longitude },
+    map: map,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: getColorForSeverity(crime.color),
+      fillOpacity: 1,
+      strokeColor: '#fff',
+      strokeWeight: 1,
+      scale: 8
+    }
+  });
+
+  marker.addListener('click', () => {
+    showTooltip(marker, crime);
+  });
+  
+  return marker;
+}
+
+function clearMarkers() {
+  markers.forEach(marker => {
+    marker.setMap(null);
+  });
+  markers = [];
+}
+
+function showTooltip(marker, crime) {
+  const content = `
+    <div style="font-family: 'Poppins', sans-serif; width: 260px;">
+      <div style="display: flex; align-items: center; margin-bottom: 10px;">
+        <img src="${crime.victim.image}" style="width: 50px; height: 50px; border-radius: 50%; margin-right: 10px; object-fit: cover;" />
+        <div style="flex: 1;">
+          <div style="font-size: 12px; color: #666;">${crime.id}</div>
+          <div style="font-size: 16px; font-weight: 600; color: #2d3436;">${crime.name}</div>
+          <div style="font-size: 12px; background: #eee; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-top: 5px;">
+            ${crime.type}
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+        <span style="display: flex; align-items: center; font-size: 12px;">
+          <span style="width: 10px; height: 10px; border-radius: 50%; background: ${getColorForSeverity(crime.color)}; margin-right: 5px;"></span>
+          ${getSeverityLabel(crime.color)}
+        </span>
+        <button onclick="showCrimeDetailsById('${crime.id}')" style="background: #6c5ce7; color: white; border: none; border-radius: 5px; padding: 4px 10px; font-size: 12px; cursor: pointer;">
+          View Details
+        </button>
+      </div>
+    </div>
+  `;
+  
+  infoWindow.setContent(content);
+  infoWindow.open(map, marker);
+  currentCrime = crime;
+}
+
+function getSeverityLabel(color) {
+  switch (color) {
+    case 'Red': return 'High Severity';
+    case 'Blue': return 'Medium Severity';
+    case 'Yellow': return 'Low Severity';
+    case 'Green': return 'Resolved';
+    default: return 'Unknown';
+  }
+}
+
+function getColorForSeverity(color) {
+  switch(color) {
+    case 'Red': return '#ff4757'; 
+    case 'Blue': return '#6baed6'; 
+    case 'Yellow': return '#eccc68'; 
+    case 'Green': return '#2ed573';  
+    default: return '#57606f';    
+  }
+}
+
+// Update heatmap with filtered crimes
+function updateHeatmap(crimes) {
+  if (heatmap) {
+    heatmap.setMap(null);
+  }
+
+
+  if (crimes.length > 0 && document.getElementById('toggleHeatmap').checked) {
+    const heatmapData = crimes.map(crime => {
+      if (isNaN(crime.location.latitude) || isNaN(crime.location.longitude)) {
+        console.error('Invalid coordinates for crime:', crime.id);
+        return null;
+      }
+      return {
+        location: new google.maps.LatLng(crime.location.latitude, crime.location.longitude),
+        weight: getWeightForSeverity(crime.color)
+      };
+    }).filter(point => point !== null);
+
+
+    heatmap = new google.maps.visualization.HeatmapLayer({
+      data: heatmapData,
+      map: map,
+      radius: 40,
+      gradient: [
+        'rgba(0, 255, 0, 0)',
+        'rgba(0, 255, 0, 0.5)',
+        'rgba(255, 255, 0, 0.7)',
+        'rgba(255, 165, 0, 0.8)',
+        'rgba(255, 0, 0, 1)'
+      ],
+      opacity: 0.8,
+      dissipating: true
+    });
+  }
+}
+
+function showCrimeDetailsById(id) {
+  const crime = crimeData.crimes.find(c => c.id === id);
+  if (crime) {
+    showCrimeDetails(crime);
+  }
+  infoWindow.close();
+}
+
+// Show crime details in modal
+function showCrimeDetails(crime) {
+
+  document.getElementById('modalCrimeTitle').textContent = crime.name;
+  document.getElementById('modalCaseId').textContent = crime.id;
+  document.getElementById('modalCaseType').textContent = crime.type;
+  
+
+  document.getElementById('modalCaseSeverity').textContent = getSeverityLabel(crime.color);
+  document.getElementById('modalCaseSeverity').style.color = getColorForSeverity(crime.color);
+  
+  document.getElementById('modalCaseDescription').textContent = crime.description;
+  document.getElementById('modalCaseLocation').textContent = crime.location.address;
+  
+
+  document.getElementById('modalVictimImage').src = crime.victim.image;
+  document.getElementById('modalVictimName').textContent = crime.victim.name;
+  document.getElementById('modalVictimAge').textContent = crime.victim.age;
+  document.getElementById('modalVictimAddress').textContent = crime.victim.address;
+  document.getElementById('modalVictimPhone').textContent = crime.victim.phone;
+  
+
+  const suspectsContainer = document.getElementById('suspectsContainer');
+  suspectsContainer.innerHTML = '';
+  
+  if (crime.suspects[0].name === 'N/A') {
+    suspectsContainer.innerHTML = '<p>No suspects identified</p>';
+  } else {
+    crime.suspects.forEach(suspect => {
+      const suspectDiv = document.createElement('div');
+      suspectDiv.className = 'suspect-details';
+      suspectDiv.innerHTML = `
+        <img class="modal-image" src="${suspect.photo || 'https://via.placeholder.com/80'}" alt="Suspect">
+        <div class="detail-list">
+          <div class="detail-item">
+            <span class="detail-label">Name:</span>
+            <span>${suspect.name}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Category:</span>
+            <span>${suspect.crime_category}</span>
+          </div>
+        </div>
+      `;
+      suspectsContainer.appendChild(suspectDiv);
+    });
+  }
+  
+  // Update case files
+  const caseFilesContainer = document.getElementById('caseFilesContainer');
+  caseFilesContainer.innerHTML = '';
+  
+  crime.case_files.forEach(file => {
+    const fileDiv = document.createElement('div');
+    fileDiv.className = 'case-file';
+    
+    let fileIcon = 'fa-file';
+    const extension = file.split('.').pop().toLowerCase();
+    
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
+      fileIcon = 'fa-file-image';
+    } else if (['mp4', 'mov', 'avi'].includes(extension)) {
+      fileIcon = 'fa-file-video';
+    } else if (['mp3', 'wav'].includes(extension)) {
+      fileIcon = 'fa-file-audio';
+    } else if (extension === 'pdf') {
+      fileIcon = 'fa-file-pdf';
+    }
+    
+    fileDiv.innerHTML = `
+      <div class="file-icon"><i class="fas ${fileIcon}"></i></div>
+      <div class="file-name">${file}</div>
+    `;
+    caseFilesContainer.appendChild(fileDiv);
+  });
+  
+
+  initModalMap(crime);
+  
+
+  document.getElementById('crimeModalOverlay').classList.add('visible');
+}
+
+// Initialize mini map in modal
+function initModalMap(crime) {
+  const mapContainer = document.getElementById('modalLocationMap');
+  mapContainer.innerHTML = '';
+  
+  modalMap = new google.maps.Map(mapContainer, {
+    center: { lat: crime.location.latitude, lng: crime.location.longitude },
+    zoom: 15,
+    disableDefaultUI: true,
+    zoomControl: true
+  });
+  
+  new google.maps.Marker({
+    position: { lat: crime.location.latitude, lng: crime.location.longitude },
+    map: modalMap,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: getColorForSeverity(crime.color),
+      fillOpacity: 1,
+      strokeColor: '#fff',
+      strokeWeight: 2,
+      scale: 8
+    }
+  });
+}
+
+// Close modal
+document.getElementById('modalCloseBtn').addEventListener('click', function() {
+  document.getElementById('crimeModalOverlay').classList.remove('visible');
+});
+
+// Close modal when clicking outside
+document.getElementById('crimeModalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) {
+    this.classList.remove('visible');
+  }
+});
+
+window.initMap = initMap;
+      google.maps.event.addListener(map, 'bounds_changed', function() {
+        if (currentCrime) {
+          const marker = markers.find(m => 
+            m.position.lat === currentCrime.location.latitude && 
+            m.position.lng === currentCrime.location.longitude
+          );
+          if (marker) {
+            showTooltip(marker, currentCrime);
+          }
+        }
+      });
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDCkK2X5KDITf_YbKoE0GhlOOHgyZDp3f8&libraries=visualization&callback=initMap">
+  </script>
+  </body>
+</html>
