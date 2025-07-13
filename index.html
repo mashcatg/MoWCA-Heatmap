@@ -646,6 +646,60 @@
       .gm-style-mtc-bbw .gm-style-mtc:first-of-type>button {
         color: #5649c0 !important;
       }
+
+      .filter-toggle-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 6px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: white;
+        border: none;
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        z-index: 1001;
+        transition: all 0.3s ease;
+      }
+
+      .filter-toggle-btn:hover {
+        background: var(--primary-dark);
+        transform: scale(1.05);
+      }
+
+      @media (max-width: 768px) {
+        .filter-panel {
+          position: fixed;
+          top: auto;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          margin: 0;
+          padding-bottom: 30px;
+          border-radius: 20px 20px 0 0;
+          transform: translateY(100%);
+          transition: transform 0.3s ease;
+          max-height: 80vh;
+          overflow-y: auto;
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(10px);
+          box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .filter-panel.visible {
+          transform: translateY(0);
+        }
+
+        .filter-toggle-btn {
+          display: flex;
+        }
+      }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -656,7 +710,10 @@
       <span class="loading-text">Loading...</span>
     </div>
     <div class="dashboard">
-      <div class="filter-panel">
+      <button class="filter-toggle-btn" id="filterToggleBtn">
+        <i class="fas fa-filter"></i>
+      </button>
+      <div class="filter-panel" id="filterPanel">
         <div class="filter-header">
           <div class="filter-title">Crime Filter</div>
           <button class="filter-reset" id="resetFilters">Reset</button>
@@ -791,6 +848,14 @@
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDCkK2X5KDITf_YbKoE0GhlOOHgyZDp3f8&libraries=visualization&callback=initMap">
 </script>
     <script>
+      // Handle filter toggle button
+      const filterToggleBtn = document.getElementById('filterToggleBtn');
+      const filterPanel = document.getElementById('filterPanel');
+
+      filterToggleBtn.addEventListener('click', () => {
+        filterPanel.classList.toggle('visible');
+      });
+
       // Crime data from your JSON
       const crimeData = {
         "crimes": [
@@ -1530,5 +1595,5 @@ window.initMap = initMap;
     <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDCkK2X5KDITf_YbKoE0GhlOOHgyZDp3f8&libraries=visualization&callback=initMap">
   </script>
-  </body>
-</html>
+    </body>
+</html> 
